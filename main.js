@@ -1,5 +1,6 @@
-const { app, Tray } = require("electron");
+const { app, Menu, Tray } = require("electron");
 const config = require("./config");
+const path = require("path");
 const googleMapsClient = require("@google/maps").createClient({
   key: config.apiKey
 });
@@ -11,8 +12,13 @@ let tray = null;
 app.dock.hide();
 
 app.on("ready", () => {
-  tray = new Tray("./images/icon.png");
+  tray = new Tray(path.join(__dirname, "/images/icon.png"));
   tray.setTitle("Loading...");
+
+  const contextMenu = Menu.buildFromTemplate([
+    { label: "Quit", click: () => app.quit() }
+  ]);
+  tray.setContextMenu(contextMenu);
 
   fetchDirections();
 
@@ -22,7 +28,12 @@ app.on("ready", () => {
 });
 
 function fetchDirections() {
-  return googleMapsClient.directions(
+  if (new Date().getHours() < 15) {
+    tray.setTitle("");
+    return;
+  }
+
+  googleMapsClient.directions(
     {
       origin,
       destination,
