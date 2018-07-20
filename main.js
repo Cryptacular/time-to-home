@@ -7,6 +7,11 @@ const googleMapsClient = require("@google/maps").createClient({
 
 const { destinations } = config;
 
+const icon = {
+  default: "Icon",
+  paused: "IconPaused"
+};
+
 let state = {
   isPaused: false,
   currentOrigin: 1,
@@ -20,7 +25,7 @@ let tray = null;
 app.dock.hide();
 
 app.on("ready", () => {
-  tray = new Tray(path.join(__dirname, "/images/icon.png"));
+  tray = new Tray(path.join(__dirname, `/images/${icon.default}.png`));
 
   drawContextMenu();
 
@@ -143,6 +148,10 @@ function swapOriginAndDestination() {
 
 function togglePause() {
   state.isPaused = !state.isPaused;
+
+  const newIcon = state.isPaused ? icon.paused : icon.default;
+  tray.setImage(path.join(__dirname, `/images/${newIcon}.png`));
+
   fetchDirections();
 }
 
@@ -177,6 +186,7 @@ function fetchDirections() {
 
       const duration = response.json.routes[0].legs[0].duration_in_traffic.text;
       const summary = response.json.routes[0].summary;
+
       tray.setTitle(`${duration} | ${summary}`);
       drawContextMenu();
     }

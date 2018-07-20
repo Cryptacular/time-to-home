@@ -42,4 +42,4 @@ To run this, follow these instructions:
 - [ ] Animate loading icon
 - [ ] Show different icon depending on heavy traffic
 - [x] Allow pausing
-  - [ ] Show transparent icon
+  - [x] Show transparent icon
