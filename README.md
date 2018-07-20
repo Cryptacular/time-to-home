@@ -12,8 +12,18 @@ To run this, follow these instructions:
 ```
 {
   "apiKey": "<API key from Google Cloud>",
-  "destination": [<Latitude>, <Longitude>],
-  "origin": [<Latitude>, <Longitude>]
+  "destinations": [
+    {
+      "id": 0,
+      "name": "Home",
+      "location": [<Latitude>, <Longitude>]
+    },
+    {
+      "id": 1,
+      "name": "Work",
+      "location": [<Latitude>, <Longitude>]
+    }
+  ]
 }
 ```
 
