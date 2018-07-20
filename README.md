@@ -31,5 +31,5 @@ To run this, follow these instructions:
 - [x] Add "Quit" menu option
 - [ ] Animate loading icon
 - [ ] Show different icon depending on heavy traffic
-- [ ] Allow pausing
+- [x] Allow pausing
   - [ ] Show transparent icon

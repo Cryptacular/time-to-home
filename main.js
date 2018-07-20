@@ -8,6 +8,7 @@ const googleMapsClient = require("@google/maps").createClient({
 const { destinations } = config;
 
 let state = {
+  isPaused: false,
   currentOrigin: 1,
   currentDestination: 0,
   info: null,
@@ -31,27 +32,37 @@ app.on("ready", () => {
 });
 
 function getAllOrigins() {
-  return destinations.map(d => {
-    return {
-      label: d.name,
-      type: "radio",
-      checked: state.currentOrigin === d.id,
-      enabled: state.currentDestination !== d.id,
-      click: () => changeOrigin(d.id)
-    };
-  });
+  const current = destinations[state.currentOrigin].name;
+  return [
+    {
+      label: `From (${current})`,
+      submenu: destinations.map(d => {
+        return {
+          label: d.name,
+          type: "radio",
+          checked: state.currentOrigin === d.id,
+          click: () => changeOrigin(d.id)
+        };
+      })
+    }
+  ];
 }
 
 function getAllDestinations() {
-  return destinations.map(d => {
-    return {
-      label: d.name,
-      type: "radio",
-      checked: state.currentDestination === d.id,
-      enabled: state.currentOrigin !== d.id,
-      click: () => changeDestination(d.id)
-    };
-  });
+  const current = destinations[state.currentDestination].name;
+  return [
+    {
+      label: `To (${current})`,
+      submenu: destinations.map(d => {
+        return {
+          label: d.name,
+          type: "radio",
+          checked: state.currentDestination === d.id,
+          click: () => changeDestination(d.id)
+        };
+      })
+    }
+  ];
 }
 
 function getInfo() {
@@ -88,6 +99,13 @@ function drawContextMenu() {
     getSeparator(),
     { label: "Swap", click: () => swapOriginAndDestination() },
     { label: "Refresh", click: () => fetchDirections() },
+    {
+      label: state.isPaused ? "Unpause" : "Pause",
+      type: "checkbox",
+      checked: state.isPaused,
+      click: () => togglePause()
+    },
+    getSeparator(),
     { label: "Quit", click: () => app.quit() }
   ]);
   tray.setContextMenu(contextMenu);
@@ -123,7 +141,18 @@ function swapOriginAndDestination() {
   fetchDirections();
 }
 
+function togglePause() {
+  state.isPaused = !state.isPaused;
+  fetchDirections();
+}
+
 function fetchDirections() {
+  if (state.isPaused) {
+    tray.setTitle("");
+    drawContextMenu();
+    return;
+  }
+
   state.error = null;
   state.info = `Fetching... (${new Date()})`;
   tray.setTitle("Loading...");
@@ -144,7 +173,7 @@ function fetchDirections() {
         return;
       }
 
-      state.info = `Last updated at ${formatDate(new Date())}`;
+      state.info = `Updated: ${formatDate(new Date())}`;
 
       const duration = response.json.routes[0].legs[0].duration_in_traffic.text;
       const summary = response.json.routes[0].summary;
@@ -157,7 +186,10 @@ function fetchDirections() {
 function formatDate(date) {
   const hours = date.getHours();
   const minutes = date.getMinutes();
-  const seconds = date.getSeconds();
 
-  return `${hours}:${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
+  const isAfternoon = hours >= 12;
+  const hoursDisplay = isAfternoon ? hours - 12 : hours;
+  const minutesDisplay = minutes < 10 ? `0${minutes}` : `${minutes}`;
+
+  return `${hoursDisplay}:${minutesDisplay}${isAfternoon ? "PM" : "AM"}`;
 }
