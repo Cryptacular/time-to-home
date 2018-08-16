@@ -23,7 +23,12 @@ To run this, follow these instructions:
       "name": "Work",
       "location": [<Latitude>, <Longitude>]
     }
-  ]
+  ],
+  "automaticUnpause": {
+    "enabled": true,
+    "hour": 15,
+    "minutes": 30
+  }
 }
 ```
 
