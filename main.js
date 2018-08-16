@@ -1,4 +1,4 @@
-const { app, Menu, Tray } = require("electron");
+const { app, Menu, Tray, Notification } = require("electron");
 const config = require("./config");
 const path = require("path");
 const googleMapsClient = require("@google/maps").createClient({
@@ -9,11 +9,13 @@ const { destinations } = config;
 
 const icon = {
   default: "Icon",
-  paused: "IconPaused"
+  paused: "IconPaused",
+  heavy: "IconHeavy"
 };
 
 let state = {
   isPaused: false,
+  isHeavyTraffic: false,
   currentOrigin: 1,
   currentDestination: 0,
   info: null,
@@ -31,7 +33,7 @@ app.on("ready", () => {
 
   fetchDirections();
 
-  setTimeout(() => {
+  setInterval(() => {
     fetchDirections();
   }, 5 * 60 * 1000);
 });
@@ -150,13 +152,14 @@ function togglePause() {
   state.isPaused = !state.isPaused;
 
   const newIcon = state.isPaused ? icon.paused : icon.default;
-  tray.setImage(path.join(__dirname, `/images/${newIcon}.png`));
+  setIcon(newIcon);
 
   fetchDirections();
 }
 
 function fetchDirections() {
   if (state.isPaused) {
+    checkForAutomaticUnpause();
     tray.setTitle("");
     drawContextMenu();
     return;
@@ -184,13 +187,87 @@ function fetchDirections() {
 
       state.info = `Updated: ${formatDate(new Date())}`;
 
-      const duration = response.json.routes[0].legs[0].duration_in_traffic.text;
-      const summary = response.json.routes[0].summary;
+      const route = response.json.routes[0];
 
-      tray.setTitle(`${duration} | ${summary}`);
+      const duration = route.legs[0].duration_in_traffic.text;
+      const summary = route.summary;
+      const warnings = route.warnings;
+
+      const durationWithoutTraffic = route.legs[0].duration.value;
+      const durationWithTraffic = route.legs[0].duration_in_traffic.value;
+
+      if (isHeavyTraffic(durationWithoutTraffic, durationWithTraffic)) {
+        setIcon(icon.heavy);
+
+        if (!state.isHeavyTraffic) {
+          new Notification({
+            title: "Traffic is getting heavy!",
+            body: "Perhaps it's time to head off?"
+          }).show();
+          state.isHeavyTraffic = true;
+        }
+      } else {
+        setIcon(icon.default);
+        state.isHeavyTraffic = false;
+      }
+
+      tray.setTitle(
+        `${duration} | ${summary}${
+          warnings && warnings.length > 0 ? `| ${warnings}` : ""
+        }`
+      );
+
       drawContextMenu();
     }
   );
+}
+
+function checkForAutomaticUnpause() {
+  const isAutomaticUnpauseEnabled =
+    config && config.automaticUnpause && config.automaticUnpause.enabled;
+
+  if (!isAutomaticUnpauseEnabled) {
+    return;
+  }
+
+  const settings = config.automaticUnpause;
+  const currentDate = new Date();
+  const thresholdTime = new Date(
+    currentDate.getFullYear(),
+    currentDate.getMonth(),
+    currentDate.getDate(),
+    settings.hour,
+    settings.minutes,
+    0,
+    0
+  );
+
+  if (
+    currentDate >= thresholdTime &&
+    currentDate <= thresholdTime.setMinutes(settings.minutes + 6)
+  ) {
+    const notification = new Notification({
+      title: `It's past ${formatDate(thresholdTime)}...`,
+      body: "Would you like to start tracking?",
+      actions: [
+        {
+          text: "Yes please!",
+          type: "button"
+        }
+      ]
+    });
+
+    notification.show();
+    notification.on("action", () => togglePause());
+  }
+}
+
+function isHeavyTraffic(durationWithoutTraffic, durationWithTraffic) {
+  return durationWithTraffic > durationWithoutTraffic * 1.3;
+}
+
+function setIcon(iconType) {
+  tray.setImage(path.join(__dirname, `/images/${iconType}.png`));
 }
 
 function formatDate(date) {
