@@ -1,20 +1,20 @@
-const { app, Menu, Tray, Notification } = require("electron");
-const config = require("./config");
-const path = require("path");
-const googleMapsClient = require("@google/maps").createClient({
+const { app, Menu, Tray, Notification } = require('electron');
+const config = require('./config');
+const path = require('path');
+const googleMapsClient = require('@google/maps').createClient({
   key: config.apiKey
 });
 
 const { destinations } = config;
 
 const icon = {
-  default: "Icon",
-  paused: "IconPaused",
-  heavy: "IconHeavy"
+  default: 'Icon',
+  paused: 'IconPaused',
+  heavy: 'IconHeavy'
 };
 
 let state = {
-  isPaused: false,
+  isPaused: true,
   isHeavyTraffic: false,
   currentOrigin: 1,
   currentDestination: 0,
@@ -26,8 +26,13 @@ let tray = null;
 
 app.dock.hide();
 
-app.on("ready", () => {
-  tray = new Tray(path.join(__dirname, `/images/${icon.default}.png`));
+app.on('ready', () => {
+  tray = new Tray(
+    path.join(
+      __dirname,
+      `/images/${state.isPaused ? icon.paused : icon.default}.png`
+    )
+  );
 
   drawContextMenu();
 
@@ -46,7 +51,7 @@ function getAllOrigins() {
       submenu: destinations.map(d => {
         return {
           label: d.name,
-          type: "radio",
+          type: 'radio',
           checked: state.currentOrigin === d.id,
           click: () => changeOrigin(d.id)
         };
@@ -63,7 +68,7 @@ function getAllDestinations() {
       submenu: destinations.map(d => {
         return {
           label: d.name,
-          type: "radio",
+          type: 'radio',
           checked: state.currentDestination === d.id,
           click: () => changeDestination(d.id)
         };
@@ -94,7 +99,7 @@ function getInfo() {
 }
 
 function getSeparator() {
-  return { type: "separator" };
+  return { type: 'separator' };
 }
 
 function drawContextMenu() {
@@ -104,16 +109,16 @@ function drawContextMenu() {
     getSeparator(),
     ...getAllDestinations(),
     getSeparator(),
-    { label: "Swap", click: () => swapOriginAndDestination() },
-    { label: "Refresh", click: () => fetchDirections() },
+    { label: 'Swap', click: () => swapOriginAndDestination() },
+    { label: 'Refresh', click: () => fetchDirections() },
     {
-      label: state.isPaused ? "Unpause" : "Pause",
-      type: "checkbox",
+      label: state.isPaused ? 'Paused' : 'Pause',
+      type: 'checkbox',
       checked: state.isPaused,
       click: () => togglePause()
     },
     getSeparator(),
-    { label: "Quit", click: () => app.quit() }
+    { label: 'Quit', click: () => app.quit() }
   ]);
   tray.setContextMenu(contextMenu);
 }
@@ -160,27 +165,28 @@ function togglePause() {
 function fetchDirections() {
   if (state.isPaused) {
     checkForAutomaticUnpause();
-    tray.setTitle("");
+    checkForAutomaticPause();
+    tray.setTitle('');
     drawContextMenu();
     return;
   }
 
   state.error = null;
   state.info = `Fetching... (${new Date()})`;
-  tray.setTitle("Loading...");
+  tray.setTitle('Loading...');
 
   googleMapsClient.directions(
     {
       origin: getOrigin(),
       destination: getDestination(),
       departure_time: new Date(Date.now()),
-      traffic_model: "best_guess"
+      traffic_model: 'best_guess'
     },
     (err, response) => {
       if (err) {
         state.info = null;
         state.error = err && err.code;
-        tray.setTitle("Error...");
+        tray.setTitle('Error...');
         drawContextMenu();
         return;
       }
@@ -201,7 +207,7 @@ function fetchDirections() {
 
         if (!state.isHeavyTraffic) {
           new Notification({
-            title: "Traffic is getting heavy!",
+            title: 'Traffic is getting heavy!',
             body: "Perhaps it's time to head off?"
           }).show();
           state.isHeavyTraffic = true;
@@ -213,7 +219,7 @@ function fetchDirections() {
 
       tray.setTitle(
         `${duration} | ${summary}${
-          warnings && warnings.length > 0 ? `| ${warnings}` : ""
+          warnings && warnings.length > 0 ? `| ${warnings}` : ''
         }`
       );
 
@@ -248,22 +254,47 @@ function checkForAutomaticUnpause() {
   ) {
     const notification = new Notification({
       title: `It's past ${formatDate(thresholdTime)}...`,
-      body: "Would you like to start tracking?",
+      body: 'Would you like to start tracking?',
       actions: [
         {
-          text: "Yes please!",
-          type: "button"
+          text: 'Yes please!',
+          type: 'button'
         }
       ]
     });
 
     notification.show();
-    notification.on("action", () => togglePause());
+    notification.on('action', () => togglePause());
+  }
+}
+
+function checkForAutomaticPause() {
+  const isAutomaticPauseEnabled =
+    config && config.automaticPause && config.automaticPause.enabled;
+
+  if (!isAutomaticPauseEnabled) {
+    return;
+  }
+
+  const settings = config.automaticPause;
+  const currentDate = new Date();
+  const thresholdTime = new Date(
+    currentDate.getFullYear(),
+    currentDate.getMonth(),
+    currentDate.getDate(),
+    settings.hour,
+    settings.minutes,
+    0,
+    0
+  );
+
+  if (currentDate >= thresholdTime) {
+    !state.isPaused && togglePause();
   }
 }
 
 function isHeavyTraffic(durationWithoutTraffic, durationWithTraffic) {
-  return durationWithTraffic > durationWithoutTraffic * 1.3;
+  return durationWithTraffic > durationWithoutTraffic * 1.4;
 }
 
 function setIcon(iconType) {
@@ -278,5 +309,5 @@ function formatDate(date) {
   const hoursDisplay = isAfternoon ? hours - 12 : hours;
   const minutesDisplay = minutes < 10 ? `0${minutes}` : `${minutes}`;
 
-  return `${hoursDisplay}:${minutesDisplay}${isAfternoon ? "PM" : "AM"}`;
+  return `${hoursDisplay}:${minutesDisplay}${isAfternoon ? 'PM' : 'AM'}`;
 }

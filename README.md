@@ -28,6 +28,11 @@ To run this, follow these instructions:
     "enabled": true,
     "hour": 15,
     "minutes": 30
+  },
+  "automaticPause": {
+    "enabled": true,
+    "hour": 20,
+    "minutes": 0
   }
 }
 ```
