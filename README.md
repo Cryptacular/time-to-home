@@ -53,3 +53,6 @@ To run this, follow these instructions:
 - [x] Show different icon depending on heavy traffic
 - [x] Allow pausing
   - [x] Show transparent icon
+- [ ] Store config in user's folder (`.timetohomerc`?)
+  - [ ] Create it if it doesn't exist
+- [ ] Config editor so users don't need to manually edit the config file
